@@ -284,11 +284,15 @@ double PointFrameResidual::linearizeStereo(CalibHessian* HCalib)
 	float energyLeft=0;
 	const Eigen::Vector3f* dIl = target->dI;
 	//const float* const Il = target->I;
-	
-	Mat33f PRE_RTll_0 = Mat33f::Identity();
-	Vec3f PRE_tTll_0 = Vec3f::Zero();
-	PRE_tTll_0 << -baseline, 0, 0;
-	Mat33f PRE_RTll = Mat33f::Identity();
+
+	Mat33f PRE_RTll_0 = T_C1C0.rotationMatrix().cast<float>();
+	Vec3f PRE_tTll_0 = T_C1C0.translation().cast<float>();
+
+	Mat33f PRE_RTll = T_C1C0.rotationMatrix().cast<float>();
+// 	Mat33f PRE_RTll_0 = T_C1C02.rotationMatrix().cast<float>();
+// 	Vec3f PRE_tTll_0 = T_C1C02.translation().cast<float>();
+// 
+// 	Mat33f PRE_RTll = T_C1C02.rotationMatrix().cast<float>();
 	Vec3f PRE_tTll = PRE_tTll_0;
 	Mat33f K = Mat33f::Zero();
 	K(0,0) = HCalib->fxl();
@@ -296,9 +300,9 @@ double PointFrameResidual::linearizeStereo(CalibHessian* HCalib)
 	K(0,2) = HCalib->cxl();
 	K(1,2) = HCalib->cyl();
 	K(2,2) = 1;
-	Mat33f PRE_KRKiTll = K * PRE_RTll * K.inverse();
+	Mat33f PRE_KRKiTll = K_right * PRE_RTll * K.inverse();
 	Mat33f PRE_RKiTll = PRE_RTll * K.inverse();
-	Vec3f PRE_KtTll = K * PRE_tTll;
+	Vec3f PRE_KtTll = K_right * PRE_tTll;
 // 	const Mat33f &PRE_KRKiTll = precalc->PRE_KRKiTll;
 // 	const Vec3f &PRE_KtTll = precalc->PRE_KtTll;
 // 	const Mat33f &PRE_RTll_0 = precalc->PRE_RTll_0;

@@ -22,7 +22,7 @@
 */
 
 
-
+#include <numeric>
 #include <thread>
 #include <locale.h>
 #include <signal.h>
@@ -49,12 +49,20 @@
 
 #include "IOWrapper/Pangolin/PangolinDSOViewer.h"
 #include "IOWrapper/OutputWrapper/SampleOutputWrapper.h"
+#include "util/timer.h"
 
 
 std::string vignette = "";
 std::string gammaCalib = "";
 std::string source = "";
+std::string source0 = "";
+std::string source1 = "";
 std::string calib = "";
+std::string calib0 = "";
+std::string calib1 = "";
+std::string T_stereo = "";
+std::string pic_timestamp = "";
+std::string pic_timestamp1 = "";
 double rescale = 1;
 bool reverse = false;
 bool disableROS = false;
@@ -64,6 +72,7 @@ bool prefetch = false;
 float playbackSpeed=0;	// 0 for linearize (play as fast as possible, while sequentializing tracking & mapping). otherwise, factor on timestamps.
 bool preload=false;
 bool useSampleOutput=false;
+int glog_loglevel = 0;
 
 
 int mode=0;
@@ -115,7 +124,7 @@ void settingsDefault(int preset)
 		setting_minOptIterations=1;
 
 		setting_logStuff = false;
-		setting_kfGlobalWeight=0.3;   // original is 1.0. 0.3 is a balance between speed and accuracy. if tracking lost, set this para higher
+		setting_kfGlobalWeight=1;   // original is 1.0. 0.3 is a balance between speed and accuracy. if tracking lost, set this para higher
 		setting_maxShiftWeightT= 0.04f * (640 + 128);   // original is 0.04f * (640+480); this para is depend on the crop size.
 		setting_maxShiftWeightR= 0.04f * (640 + 128);    // original is 0.0f * (640+480);
 		setting_maxShiftWeightRT= 0.02f * (640 + 128);  // original is 0.02f * (640+480);
@@ -274,6 +283,18 @@ void parseArgument(char* arg)
 		printf("loading data from %s!\n", source.c_str());
 		return;
 	}
+	if(1==sscanf(arg,"files0=%s",buf))
+	{
+		source0 = buf;
+		printf("loading data from %s!\n", source0.c_str());
+		return;
+	}
+	if(1==sscanf(arg,"files1=%s",buf))
+	{
+		source1 = buf;
+		printf("loading data from %s!\n", source1.c_str());
+		return;
+	}
 	if(1==sscanf(arg,"groundtruth=%s",buf))
 	{
 		gt_path = buf;
@@ -281,6 +302,11 @@ void parseArgument(char* arg)
 		return;
 	}
 
+    if(1==sscanf(arg,"savefile_tail=%s",buf))
+	{
+		savefile_tail = buf;
+		return;
+    }
 	if(1==sscanf(arg,"calib=%s",buf))
 	{
 		calib = buf;
@@ -288,6 +314,34 @@ void parseArgument(char* arg)
 		return;
 	}
 
+	if(1==sscanf(arg,"calib0=%s",buf))
+	{
+		calib0 = buf;
+		printf("loading calibration from %s!\n", calib0.c_str());
+		return;
+	}
+	if(1==sscanf(arg,"calib1=%s",buf))
+	{
+		calib1 = buf;
+		printf("loading calibration from %s!\n", calib1.c_str());
+		return;
+	}
+	if(1==sscanf(arg,"T_stereo=%s",buf))
+	{
+		T_stereo = buf;
+		return;
+	}
+	if(1==sscanf(arg,"pic_timestamp=%s",buf))
+	{
+		pic_timestamp = buf;
+		return;
+	}
+	
+	if(1==sscanf(arg,"pic_timestamp1=%s",buf))
+	{
+		pic_timestamp1 = buf;
+		return;
+	}
 	if(1==sscanf(arg,"vignette=%s",buf))
 	{
 		vignette = buf;
@@ -380,21 +434,159 @@ void getGroundtruth(){
 	inf.close();
 }
 
+Eigen::Matrix3d quaternionToRotation(const Eigen::Vector4d& q) {
+    Eigen::Matrix3d R = Eigen::Matrix3d::Zero();
+    
+    R(0, 0) = 1-2.0*q(1)*q(1)-2.0*q(2)*q(2);
+    R(0, 1) = 2.0*(q(0)*q(1) - q(2)*q(3));
+    R(0, 2) = 2.0*(q(0)*q(2) + q(1)*q(3));
+    
+    R(1, 0) = 2.0*(q(0)*q(1) + q(2)*q(3));
+    R(1, 1) = -1*q(0)*q(0) + q(1)*q(1) - q(2)*q(2) + q(3)*q(3);
+    R(1, 2) = 2.0*(q(1)*q(2) - q(0)*q(3));
+    
+    R(2, 0) = 2.0*(q(0)*q(2) - q(1)*q(3));
+    R(2, 1) = 2.0*(q(1)*q(2) + q(0)*q(3));
+    R(2, 2) = -1*q(0)*q(0) - q(1)*q(1) + q(2)*q(2) + q(3)*q(3);
+    return R;
+}
+
+void getGroundtruth_euroc(){
+	std::ifstream inf;
+	
+	if(gt_path.size() == 0)
+	    return;
+	inf.open(gt_path);
+	std::string sline;
+	std::getline(inf,sline);
+	while(std::getline(inf,sline)){
+		std::istringstream ss(sline);
+		Vec4 q4;
+		Vec3 t;
+		Vec3 v;
+		Vec3 bias_g;
+		Vec3 bias_a;
+		double time;
+		ss>>time;
+		time = time/1e9;
+		char temp;
+		for(int i=0;i<3;++i){
+		  ss>>temp;
+		  ss>>t(i);
+		}
+		ss>>temp;
+		ss>>q4(3);
+		for(int i=0;i<3;++i){
+		  ss>>temp;
+		  ss>>q4(i);
+		}
+		for(int i=0;i<3;++i){
+		  ss>>temp;
+		  ss>>v(i);
+		}
+		for(int i=0;i<3;++i){
+		  ss>>temp;
+		  ss>>bias_g(i);
+		}
+		for(int i=0;i<3;++i){
+		  ss>>temp;
+		  ss>>bias_a(i);
+		}
+		Eigen::Matrix3d R_wb = quaternionToRotation(q4);
+		SE3 pose0(R_wb,t);
+		gt_pose.push_back(pose0);
+		gt_time_stamp.push_back(time);
+		gt_velocity.push_back(v);
+		gt_bias_g.push_back(bias_g);
+		gt_bias_a.push_back(bias_a);
+	}
+	inf.close();
+}
+
+void getTstereo(){
+	std::ifstream inf;
+	inf.open(T_stereo);
+	std::string sline;
+	int line = 0;
+	Mat33 R;
+	Vec3 t;
+	while(line<3&&std::getline(inf,sline)){
+		std::istringstream ss(sline);
+		for(int i=0;i<3;++i){
+		    ss>>R(line,i);
+		}
+		ss>>t(line);
+		++line;
+	}
+	inf.close();
+	SE3 temp(R,t);
+	T_C0C1 = temp;
+	T_C1C0 = temp.inverse();
+    std::cout << "T_C0C1: \n"
+              << T_C0C1.matrix() << "\n T_C1C0: \n"
+              << T_C1C0.matrix() << std::endl;
+}
+
+void getPicTimestamp(){
+	std::ifstream inf;
+	inf.open(pic_timestamp);
+	std::string sline;
+	std::getline(inf,sline);
+	while(std::getline(inf,sline)){
+		std::istringstream ss(sline);
+		double time;
+		ss>>time;
+		time = time/1e9;
+		pic_time_stamp.push_back(time);
+	}
+	inf.close();
+	if(pic_timestamp1.size()>0){
+	    std::ifstream inf;
+	    inf.open(pic_timestamp1);
+	    std::string sline;
+	    std::getline(inf,sline);
+	    while(std::getline(inf,sline)){
+		    std::istringstream ss(sline);
+		    double time;
+		    ss>>time;
+		    time = time/1e9;
+		    pic_time_stamp_r.push_back(time);
+	    }
+	    inf.close();
+	}
+}
+
 int main( int argc, char** argv )
 {
+    FLAGS_minloglevel     = glog_loglevel;
+    google::InitGoogleLogging(argv[0]);
+
 	//setlocale(LC_ALL, "");
 	for(int i=1; i<argc;i++)
 		parseArgument(argv[i]);
 
-	if(gt_path.size()>0)getGroundtruth();
+    if(gt_path.size()>0)getGroundtruth_euroc();
+	if(T_stereo.size()>0)getTstereo();
+
+	getPicTimestamp();
+
+	// if(gt_path.size()>0)getGroundtruth();
 	// hook crtl+C.
 	boost::thread exThread = boost::thread(exitThread);
 
 
-	ImageFolderReader* reader = new ImageFolderReader(source+"/image_0", calib, gammaCalib, vignette);
-	ImageFolderReader* reader_right = new ImageFolderReader(source+"/image_1", calib, gammaCalib, vignette);
+	// ImageFolderReader* reader = new ImageFolderReader(source+"/image_0", calib, gammaCalib, vignette);
+	// ImageFolderReader* reader_right = new ImageFolderReader(source+"/image_1", calib, gammaCalib, vignette);
+	// reader->setGlobalCalibration();
+	// reader_right->setGlobalCalibration();
+	ImageFolderReader* reader = new ImageFolderReader(source0, calib0, gammaCalib, vignette);
+	ImageFolderReader* reader_right = new ImageFolderReader(source1, calib1, gammaCalib, vignette);
 	reader->setGlobalCalibration();
-	reader_right->setGlobalCalibration();
+	// reader_right->setGlobalCalibration();
+	int w_out, h_out;
+	reader_right->getCalibMono(K_right,w_out,h_out);
+	
+	LOG(INFO)<<"K_right: \n"<<K_right;
 
 
 	if(setting_photometricCalibration > 0 && reader->getPhotometricGamma() == 0)
@@ -450,8 +642,11 @@ int main( int argc, char** argv )
     std::thread runthread([&]() {
         std::vector<int> idsToPlay;
         std::vector<double> timesToPlayAt;
-	std::vector<int> idsToPlayRight;		// right images
+        std::vector<int> idsToPlayRight;		// right images
         std::vector<double> timesToPlayAtRight;
+        std::vector<double> track_timing;
+        slam_utility::stats::TicTocTimer tic_toc_timer;
+        size_t good_frame_count = 0;
         for(int i=lstart;i>= 0 && i< reader->getNumImages() && linc*i < linc*lend;i+=linc)
         {
             idsToPlay.push_back(i);
@@ -483,7 +678,7 @@ int main( int argc, char** argv )
 
 
         std::vector<ImageAndExposure*> preloadedImages;
-	std::vector<ImageAndExposure*> preloadedImagesRight;
+        std::vector<ImageAndExposure*> preloadedImagesRight;
         if(preload)
         {
             printf("LOADING ALL IMAGES!\n");
@@ -491,7 +686,7 @@ int main( int argc, char** argv )
             {
                 int i = idsToPlay[ii];
                 preloadedImages.push_back(reader->getImage(i));
-		preloadedImagesRight.push_back(reader_right->getImage(i));
+                preloadedImagesRight.push_back(reader_right->getImage(i));
             }
         }
 
@@ -512,17 +707,39 @@ int main( int argc, char** argv )
 
             int i = idsToPlay[ii];
 
+            double time_l = pic_time_stamp[i];
+            int index = -1;
+            // @TODO: this part can be accelerated!!!
+            if (pic_time_stamp_r.size() > 0)
+            {
+                for(int i = 0;i < pic_time_stamp_r.size(); ++i)
+                {
+                    if (pic_time_stamp_r[i] >= time_l || fabs( pic_time_stamp_r[i] - time_l) < 0.01)
+                    {
+                        index = i;
+                        break;
+                    }
+                }
+            }
+            if (fabs(pic_time_stamp_r[index]-time_l) > 0.01)
+            {
+                continue;
+            }
+
+            std::cout << std::setprecision(20) << time_l << ", " << pic_time_stamp_r[index] << "\n";
 
             ImageAndExposure* img;
-	    ImageAndExposure* img_right;
-            if(preload){
+            ImageAndExposure* img_right;
+            if(preload)
+            {
                 img = preloadedImages[ii];
-		img_right = preloadedImagesRight[ii];
-	    }
-            else{
+                img_right = preloadedImagesRight[ii];
+            }
+            else
+            {
                 img = reader->getImage(i);
-		img_right = reader_right->getImage(i);
-	    }
+                img_right = reader_right->getImage(i);
+            }
 
 
 
@@ -542,13 +759,18 @@ int main( int argc, char** argv )
             }
 
 
-
-            if(!skipFrame) fullSystem->addActiveFrame(img, img_right, i);
-
+            if(!skipFrame)
+            {
+                tic_toc_timer.tic();
+                fullSystem->addActiveFrame(img, img_right, i);
+                track_timing.emplace_back(tic_toc_timer.toc());
+                good_frame_count += 1;
+            }
 
 
 
             delete img;
+            delete img_right;
 
             if(fullSystem->initFailed || setting_fullResetRequested)
             {
@@ -585,7 +807,7 @@ int main( int argc, char** argv )
         gettimeofday(&tv_end, NULL);
 
 
-        fullSystem->printResult("result.txt");
+        fullSystem->printResult(savefile_tail);
 
 
         int numFramesProcessed = abs(idsToPlay[0]-idsToPlay.back());
@@ -615,6 +837,21 @@ int main( int argc, char** argv )
             tmlog.close();
         }
 
+        {
+            std::ofstream myfile(savefile_tail + "_stats.txt");
+            myfile << reader->getNumImages() << " "
+                   << good_frame_count << " "
+                   << good_frame_count / (float) reader->getNumImages() << " ";
+
+            std::sort(track_timing.begin(), track_timing.end());
+            const double s =
+                std::accumulate(track_timing.begin(), track_timing.end(), 0.0);
+            myfile << track_timing.at(good_frame_count / 2) << " "
+                   << s / good_frame_count << " "
+                   << track_timing.front() << " "
+                   << track_timing.back() << std::endl;
+            myfile.close();
+        }
     });
 
 
@@ -636,7 +873,8 @@ int main( int argc, char** argv )
 
 	printf("DELETE READER!\n");
 	delete reader;
+    delete reader_right;
 
-	printf("EXIT NOW!\n");
+    printf("EXIT NOW!\n");
 	return 0;
 }

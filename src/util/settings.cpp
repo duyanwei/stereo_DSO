@@ -214,6 +214,32 @@ int sparsityFactor = 5;	// not actually a setting, only some legacy stuff for co
 double baseline = 0;
 std::string gt_path = "";
 std::vector<SE3> gt_pose;
+std::vector<Vec3> gt_velocity;
+std::vector<Vec3> gt_bias_g;
+std::vector<Vec3> gt_bias_a;
+std::string savefile_tail = "";
+SE3 T_C0C1;
+SE3 T_C1C0;
+Mat33f K_right;
+std::vector<double> gt_time_stamp;
+std::vector<double> pic_time_stamp;
+std::vector<double> pic_time_stamp_r;
+// SE3 T_BC;
+// Sim3 T_WD;
+// Sim3 T_WD_l;
+// Sim3 T_WD_l_half;
+// Sim3 T_WD_change;
+// int index_align;
+// SE3 T_WR_align = SE3();
+// double run_time=0;
+// Vec7 step_twd = Vec7::Zero();
+// Vec7 state_twd = Vec7::Zero();
+// bool use_optimize = true;
+// bool use_Dmargin = false;
+// double d_min = sqrt(1.1);
+// int M_num=0;
+// int M_num2=0;
+// bool first_track_flag = false;
 
 void handleKey(char k)
 {

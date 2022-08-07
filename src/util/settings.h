@@ -209,6 +209,16 @@ extern int staticPatternPadding[10];
 extern double baseline;
 extern std::string gt_path;
 extern std::vector<SE3> gt_pose;
+extern std::vector<Vec3> gt_velocity;
+extern std::vector<Vec3> gt_bias_g;
+extern std::vector<Vec3> gt_bias_a;
+extern std::string savefile_tail;
+extern SE3 T_C0C1;
+extern SE3 T_C1C0;
+extern Mat33f K_right;
+extern std::vector<double> gt_time_stamp;
+extern std::vector<double> pic_time_stamp;
+extern std::vector<double> pic_time_stamp_r;
 
 
 

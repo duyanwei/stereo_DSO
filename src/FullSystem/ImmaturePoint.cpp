@@ -454,13 +454,23 @@ ImmaturePointStatus ImmaturePoint::traceStereo(FrameHessian* frame, CalibHessian
 	Vec2f aff;
 	aff << 1, 0;
 	
-	if(mode_right)
+	// if(mode_right)
+	// {
+	//     bl << -baseline, 0, 0;
+	// }else{
+	//     bl << baseline, 0, 0;
+	// }
+    if(mode_right)
 	{
 	    bl << -baseline, 0, 0;
+	    KRKi = K_right*T_C1C0.rotationMatrix().cast<float>()*K.inverse();
+	    Kt = K_right*T_C1C0.translation().cast<float>();
 	}else{
 	    bl << baseline, 0, 0;
+	    KRKi = K*T_C0C1.rotationMatrix().cast<float>()*K_right.inverse();
+	    Kt = K*T_C0C1.translation().cast<float>();
 	}
-	Kt = K*bl;
+	// Kt = K*bl;
 	
 	Vec3f pr = KRKi * Vec3f(u_stereo,v_stereo, 1);
 	Vec3f ptpMin = pr +Kt * idepth_min_stereo;
@@ -717,9 +727,25 @@ ImmaturePointStatus ImmaturePoint::traceStereo(FrameHessian* frame, CalibHessian
 
 	lastTracePixelInterval=2*errorInPixel;
 	lastTraceUV = Vec2f(bestU, bestV);
-	// baseline * fx
-	double bf = -K(0,0)*bl[0];
-	idepth_stereo = (u_stereo - bestU)/bf;
+	// // baseline * fx
+	// double bf = -K(0,0)*bl[0];
+	// idepth_stereo = (u_stereo - bestU)/bf;
+
+	Mat32f A;
+	for(int i=0;i<3;++i){
+	    A(i,0) = pr(i);
+	}
+	A(0,1) = -bestU;
+	A(1,1) = -bestV;
+	A(2,1) = -1;
+	Vec2f depth_l_r = ((A.transpose()*A).inverse())*A.transpose()*(-Kt);
+	idepth_stereo = 1/depth_l_r(0);
+	if(idepth_stereo<0){
+	      lastTracePixelInterval=0;
+	      lastTraceUV = Vec2f(-1,-1);
+	      return lastTraceStatus = ImmaturePointStatus::IPS_OUTLIER;
+	}
+
 	return lastTraceStatus = ImmaturePointStatus::IPS_GOOD;
   
 }

@@ -199,6 +199,8 @@ FullSystem::~FullSystem()
 		delete s;
 	for(FrameHessian* fh : unmappedTrackedFrames)
 		delete fh;
+	for(FrameHessian* fh : unmappedTrackedFrames_right)
+		delete fh;
 
 	delete coarseDistanceMap;
 	delete coarseTracker;
@@ -242,13 +244,13 @@ void FullSystem::setGammaFunction(float* BInv)
 
 
 
-void FullSystem::printResult(std::string file)
+void FullSystem::printResult(std::string prefix)
 {
 	boost::unique_lock<boost::mutex> lock(trackMutex);
 	boost::unique_lock<boost::mutex> crlock(shellPoseMutex);
 
 	std::ofstream myfile;
-	myfile.open (file.c_str());
+	myfile.open (prefix + "_KeyFrameTrajectory.txt");
 	myfile << std::setprecision(15);
 
 	for(FrameShell* s : allFrameHistory)
@@ -257,14 +259,26 @@ void FullSystem::printResult(std::string file)
 
 		if(setting_onlyLogKFPoses && s->marginalizedAt == s->id) continue;
 
-		myfile << s->timestamp <<
-			" " << s->camToWorld.translation().transpose()<<
-			" " << s->camToWorld.so3().unit_quaternion().x()<<
-			" " << s->camToWorld.so3().unit_quaternion().y()<<
-			" " << s->camToWorld.so3().unit_quaternion().z()<<
-			" " << s->camToWorld.so3().unit_quaternion().w() << "\n";
+        const Vec3 trans = s->camToWorld.translation().transpose();
+        const Vec4 quat  = s->camToWorld.so3().unit_quaternion().coeffs();
+
+        myfile << s->timestamp << " "
+               << trans(0) << " " << trans(1) << " " << trans(2) << " "
+               << quat(0) << " " << quat(1) << " " << quat(2) << " " << quat(3) << "\n"; 
 	}
 	myfile.close();
+
+	myfile.open (prefix + "_CameraTrajectory_tracking.txt");
+	myfile << std::setprecision(15);
+    for (const auto& v : est_poses_)
+    {
+        const Vec4 q = Eigen::Quaterniond(v.T.rotationMatrix()).coeffs();
+        const Vec3 t = v.T.translation();
+        myfile << v.t << " "
+               << t(0) << " " << t(1) << " " << t(2) << " " 
+               << q(0) << " " << q(1) << " " << q(2) << " " << q(3) << std::endl;
+    }
+    myfile.close();
 }
 
 
@@ -1104,6 +1118,7 @@ void FullSystem::addActiveFrame( ImageAndExposure* image, ImageAndExposure* imag
 // 		LOG(INFO)<<"fh->shell->camToTrackingRef: "<<fh->shell->camToTrackingRef.translation().transpose();
 // 		LOG(INFO)<<"fh->shell->trackingRef->camToWorld : "<<fh->shell->trackingRef->camToWorld.translation().transpose();
 // 		exit(1);
+        est_poses_.emplace_back(fh->shell->timestamp, fh->shell->camToWorld);
 		return;
 	}
 }
@@ -1136,6 +1151,7 @@ void FullSystem::deliverTrackedFrame(FrameHessian* fh, FrameHessian* fh_right, b
 	{
 		boost::unique_lock<boost::mutex> lock(trackMapSyncMutex);
 		unmappedTrackedFrames.push_back(fh);
+		unmappedTrackedFrames_right.push_back(fh_right);
 		if(needKF) needNewKFAfter=fh->shell->trackingRef->id;
 		trackedFrameSignal.notify_all();
 
@@ -1197,8 +1213,10 @@ void FullSystem::mappingLoop()
 					fh->setEvalPT_scaled(fh->shell->camToWorld.inverse(),fh->shell->aff_g2l);
 				}
 				delete fh;
+                FrameHessian* fffh = unmappedTrackedFrames_right.front();
+                unmappedTrackedFrames_right.pop_front();
+                delete fffh;
 			}
-
 		}
 		else
 		{

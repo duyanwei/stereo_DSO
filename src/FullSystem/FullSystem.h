@@ -319,6 +319,18 @@ private:
 	bool needToKetchupMapping;
 
 	int lastRefStopID;
+
+    struct EstStampedPose
+    {
+        double t;
+        SE3    T;
+
+        EstStampedPose(const double _t, const SE3& _T) : t(_t), T(_T)
+        {
+            
+        }
+    };
+    std::vector<EstStampedPose> est_poses_;
 };
 }
 
