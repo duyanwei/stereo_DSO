@@ -914,7 +914,7 @@ bool CoarseTracker::trackNewestCoarse(
 		{
 			lvl++;
 			haveRepeated=true;
-			printf("REPEAT LEVEL!\n");
+			// printf("REPEAT LEVEL!\n");
 		}
 	}
 

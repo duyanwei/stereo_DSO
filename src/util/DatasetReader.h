@@ -293,8 +293,9 @@ private:
 
 	inline void loadTimestamps()
 	{
-		std::ifstream tr;
-		std::string timesFile = path.substr(0,path.find_last_of('/')) + "/times.txt";
+        files.clear();
+        std::ifstream tr;
+        std::string timesFile = path.substr(0,path.find_last_of('/')) + "/../../times.txt";
 		tr.open(timesFile.c_str());
 		while(!tr.eof() && tr.good())
 		{
@@ -317,6 +318,17 @@ private:
 				timestamps.push_back(stamp);
 				exposures.push_back(exposure);
 			}
+            else
+            {
+                std::string name(buf);
+                if (name.empty())
+                {
+                    continue;
+                }
+                files.push_back(this->path + "/" + name + ".png");
+				timestamps.push_back(std::stod(name) / 1e9);
+				exposures.push_back(exposure);
+            }
 		}
 		tr.close();
 

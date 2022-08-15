@@ -426,7 +426,7 @@ Vec4 FullSystem::trackNewCoarse(FrameHessian* fh)
 				achievedRes);	// in each level has to be at least as good as the last try.
 		tryIterations++;
 // 		LOG(INFO)<<"coarseTracker->lastResiduals[0]: "<<coarseTracker->lastResiduals[0];
-		if(i != 0)
+		if(false && i != 0)
 		{
 			printf("RE-TRACK ATTEMPT %d with initOption %d and start-lvl %d (ab %f %f): %f %f %f %f %f -> %f %f %f %f %f \n",
 					i,

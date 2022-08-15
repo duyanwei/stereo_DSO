@@ -409,7 +409,30 @@ void parseArgument(char* arg)
 		}
 		return;
 	}
-
+	if(1==sscanf(arg,"preload=%d",&option))
+	{
+		if(option==1)
+		{
+			preload = true;
+		}
+		return;
+	}
+	if(1==sscanf(arg,"pointdensity=%d",&option))
+	{
+        setting_desiredPointDensity = option;
+        setting_desiredImmatureDensity = int(setting_desiredPointDensity * 0.75);
+		setting_minFrames = 5;
+		setting_maxFrames = 7;
+		setting_maxOptIterations = 6;
+		setting_minOptIterations = 1;
+        setting_reTrackThreshold = 2.5;
+        return;
+    }
+	if(1==sscanf(arg,"glog_loglevel=%d",&option))
+	{
+        glog_loglevel = option;
+        return;
+    }
 	printf("could not parse argument \"%s\"!!!!\n", arg);
 }
 
@@ -726,7 +749,7 @@ int main( int argc, char** argv )
                 continue;
             }
 
-            std::cout << std::setprecision(20) << time_l << ", " << pic_time_stamp_r[index] << "\n";
+            // std::cout << std::setprecision(20) << time_l << ", " << pic_time_stamp_r[index] << "\n";
 
             ImageAndExposure* img;
             ImageAndExposure* img_right;
@@ -840,14 +863,14 @@ int main( int argc, char** argv )
         {
             std::ofstream myfile(savefile_tail + "_stats.txt");
             myfile << reader->getNumImages() << " "
-                   << good_frame_count << " "
-                   << good_frame_count / (float) reader->getNumImages() << " ";
+                   << good_frame_count << " ";
 
             std::sort(track_timing.begin(), track_timing.end());
             const double s =
                 std::accumulate(track_timing.begin(), track_timing.end(), 0.0);
-            myfile << track_timing.at(good_frame_count / 2) << " "
+            myfile << std::setprecision(10)
                    << s / good_frame_count << " "
+                   << track_timing.at(good_frame_count / 2) << " "
                    << track_timing.front() << " "
                    << track_timing.back() << std::endl;
             myfile.close();
