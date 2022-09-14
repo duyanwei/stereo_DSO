@@ -129,6 +129,48 @@ private:
 
 };  // class
 
+struct TimeLog
+{
+    double timestamp;
+    double tracking_time;
+
+    /**
+     * @brief Construct a new Time Log object
+     *
+     * @param _timestamp
+     * @param _tracking_time
+     */
+    TimeLog(double _timestamp, double _tracking_time)
+      : timestamp(_timestamp), tracking_time(_tracking_time)
+    {
+    }
+
+    /**
+     * @brief
+     *
+     * @param name
+     * @param logs
+     */
+    static void Save(const std::string& name, const std::vector<TimeLog>& logs)
+    {
+        std::ofstream myfile(name);
+        if (!myfile.is_open())
+        {
+            std::cout << "Failed to open " << name << " to save time log."
+                      << "\n";
+            return;
+        }
+        std::cout << "Saved " << logs.size() << " data to file " << name
+                  << "\n";
+        myfile << std::setprecision(20);
+        for (const auto& l : logs)
+        {
+            myfile << l.timestamp << " " << l.tracking_time << "\n";
+        }
+        myfile.close();
+    }
+};
+
 }  // namespace stats
 
 }  // namespace slam_utility

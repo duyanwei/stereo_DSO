@@ -295,6 +295,7 @@ private:
 	{
         files.clear();
         std::ifstream tr;
+		// read stereo synchronized timestamp
         std::string timesFile = path.substr(0,path.find_last_of('/')) + "/../../times.txt";
 		tr.open(timesFile.c_str());
 		while(!tr.eof() && tr.good())

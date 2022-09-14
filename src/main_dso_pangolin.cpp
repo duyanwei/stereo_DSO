@@ -1,6 +1,6 @@
 /**
 * This file is part of DSO.
-* 
+*
 * Copyright 2016 Technical University of Munich and Intel.
 * Developed by Jakob Engel <engelj at in dot tum dot de>,
 * for more information see <http://vision.in.tum.de/dso>.
@@ -336,7 +336,7 @@ void parseArgument(char* arg)
 		pic_timestamp = buf;
 		return;
 	}
-	
+
 	if(1==sscanf(arg,"pic_timestamp1=%s",buf))
 	{
 		pic_timestamp1 = buf;
@@ -420,12 +420,12 @@ void parseArgument(char* arg)
 	if(1==sscanf(arg,"pointdensity=%d",&option))
 	{
         setting_desiredPointDensity = option;
-        setting_desiredImmatureDensity = int(setting_desiredPointDensity * 0.75);
+        setting_desiredImmatureDensity = int((double)setting_desiredPointDensity * 0.75);
 		setting_minFrames = 5;
 		setting_maxFrames = 7;
 		setting_maxOptIterations = 6;
 		setting_minOptIterations = 1;
-        setting_reTrackThreshold = 2.5;
+        // setting_reTrackThreshold = 2.5;
         return;
     }
 	if(1==sscanf(arg,"glog_loglevel=%d",&option))
@@ -447,7 +447,7 @@ void getGroundtruth(){
 		Vec3 t;
 		for(int i=0;i<3;++i){
 			for(int j=0;j<3;++j){
-				ss>>R(i,j);			      
+				ss>>R(i,j);
 			}
 			ss>>t(i);
 		}
@@ -459,15 +459,15 @@ void getGroundtruth(){
 
 Eigen::Matrix3d quaternionToRotation(const Eigen::Vector4d& q) {
     Eigen::Matrix3d R = Eigen::Matrix3d::Zero();
-    
+
     R(0, 0) = 1-2.0*q(1)*q(1)-2.0*q(2)*q(2);
     R(0, 1) = 2.0*(q(0)*q(1) - q(2)*q(3));
     R(0, 2) = 2.0*(q(0)*q(2) + q(1)*q(3));
-    
+
     R(1, 0) = 2.0*(q(0)*q(1) + q(2)*q(3));
     R(1, 1) = -1*q(0)*q(0) + q(1)*q(1) - q(2)*q(2) + q(3)*q(3);
     R(1, 2) = 2.0*(q(1)*q(2) - q(0)*q(3));
-    
+
     R(2, 0) = 2.0*(q(0)*q(2) - q(1)*q(3));
     R(2, 1) = 2.0*(q(1)*q(2) + q(0)*q(3));
     R(2, 2) = -1*q(0)*q(0) - q(1)*q(1) + q(2)*q(2) + q(3)*q(3);
@@ -476,7 +476,7 @@ Eigen::Matrix3d quaternionToRotation(const Eigen::Vector4d& q) {
 
 void getGroundtruth_euroc(){
 	std::ifstream inf;
-	
+
 	if(gt_path.size() == 0)
 	    return;
 	inf.open(gt_path);
@@ -608,7 +608,7 @@ int main( int argc, char** argv )
 	// reader_right->setGlobalCalibration();
 	int w_out, h_out;
 	reader_right->getCalibMono(K_right,w_out,h_out);
-	
+
 	LOG(INFO)<<"K_right: \n"<<K_right;
 
 
@@ -667,9 +667,8 @@ int main( int argc, char** argv )
         std::vector<double> timesToPlayAt;
         std::vector<int> idsToPlayRight;		// right images
         std::vector<double> timesToPlayAtRight;
-        std::vector<double> track_timing;
         slam_utility::stats::TicTocTimer tic_toc_timer;
-        size_t good_frame_count = 0;
+		std::vector<slam_utility::stats::TimeLog> time_logs;
         for(int i=lstart;i>= 0 && i< reader->getNumImages() && linc*i < linc*lend;i+=linc)
         {
             idsToPlay.push_back(i);
@@ -730,24 +729,24 @@ int main( int argc, char** argv )
 
             int i = idsToPlay[ii];
 
-            double time_l = pic_time_stamp[i];
-            int index = -1;
-            // @TODO: this part can be accelerated!!!
-            if (pic_time_stamp_r.size() > 0)
-            {
-                for(int i = 0;i < pic_time_stamp_r.size(); ++i)
-                {
-                    if (pic_time_stamp_r[i] >= time_l || fabs( pic_time_stamp_r[i] - time_l) < 0.01)
-                    {
-                        index = i;
-                        break;
-                    }
-                }
-            }
-            if (fabs(pic_time_stamp_r[index]-time_l) > 0.01)
-            {
-                continue;
-            }
+            // double time_l = pic_time_stamp[i];
+            // int index = -1;
+            // // @TODO: this part can be accelerated!!!
+            // if (pic_time_stamp_r.size() > 0)
+            // {
+            //     for(int i = 0;i < pic_time_stamp_r.size(); ++i)
+            //     {
+            //         if (pic_time_stamp_r[i] >= time_l || fabs( pic_time_stamp_r[i] - time_l) < 0.01)
+            //         {
+            //             index = i;
+            //             break;
+            //         }
+            //     }
+            // }
+            // if (fabs(pic_time_stamp_r[index]-time_l) > 0.01)
+            // {
+            //     continue;
+            // }
 
             // std::cout << std::setprecision(20) << time_l << ", " << pic_time_stamp_r[index] << "\n";
 
@@ -786,8 +785,7 @@ int main( int argc, char** argv )
             {
                 tic_toc_timer.tic();
                 fullSystem->addActiveFrame(img, img_right, i);
-                track_timing.emplace_back(tic_toc_timer.toc());
-                good_frame_count += 1;
+                time_logs.emplace_back(reader->getTimestamp(i), tic_toc_timer.toc());
             }
 
 
@@ -861,19 +859,7 @@ int main( int argc, char** argv )
         }
 
         {
-            std::ofstream myfile(savefile_tail + "_stats.txt");
-            myfile << reader->getNumImages() << " "
-                   << good_frame_count << " ";
-
-            std::sort(track_timing.begin(), track_timing.end());
-            const double s =
-                std::accumulate(track_timing.begin(), track_timing.end(), 0.0);
-            myfile << std::setprecision(10)
-                   << s / good_frame_count << " "
-                   << track_timing.at(good_frame_count / 2) << " "
-                   << track_timing.front() << " "
-                   << track_timing.back() << std::endl;
-            myfile.close();
+			slam_utility::stats::TimeLog::Save(savefile_tail + "_stats.txt", time_logs);
         }
     });
 
