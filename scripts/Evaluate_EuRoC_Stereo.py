@@ -16,8 +16,7 @@ import os
 import subprocess
 import time
 
-# DATA_ROOT = '/mnt/DATA/Datasets/EuRoC/'
-DATA_ROOT = '/media/duyanwei/Du/data/EuRoC/MAV/'
+DATA_ROOT = '/mnt/DATA/Datasets/EuRoC/'
 SeqNameList = [
     'MH_01_easy', 'MH_02_easy', 'MH_03_medium',
     'MH_04_difficult', 'MH_05_difficult',
@@ -25,10 +24,10 @@ SeqNameList = [
     'V2_01_easy', 'V2_02_medium', 'V2_03_difficult']
 RESULT_ROOT = os.path.join(
     os.environ['SLAM_RESULT'], 'stereo_DSO/EuRoC/')
-NumRepeating = 1
+NumRepeating = 5
 SleepTime = 1  # 10 # 25 # second
 FeaturePool = [800]  # 2000]
-SpeedPool = [1.0]  # , 2.0, 3.0, 4.0, 5.0]  # x
+SpeedPool = [1.0, 2.0, 3.0, 4.0, 5.0]  # x
 GT_ROOT = os.path.join(DATA_ROOT, 'gt_pose')
 SENSOR = 'cam0'
 SaveResult = 1

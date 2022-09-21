@@ -22,11 +22,10 @@ SeqNameList = [
     'V1_01_easy', 'V1_02_medium', 'V1_03_difficult',
     'V2_01_easy', 'V2_02_medium', 'V2_03_difficult']
 RESULT_ROOT = os.path.join(
-    os.environ['SLAM_RESULT'], 'stereo_DSO/EuRoC/debug')
+    os.environ['SLAM_RESULT'], 'stereo_DSO/EuRoC/')
 NumRepeating = 5
 SleepTime = 1  # 10 # 25 # second
-# FeaturePool = [100, 200, 400]
-FeaturePool = [1600]  # [200, 400, 800, 1200, 1500, 2000]
+FeaturePool = [800]  # [200, 400, 800, 1200, 1500, 2000]
 SpeedPool = [1.0, 2.0, 3.0, 4.0, 5.0]  # x
 ResultFile = [
     'CameraTrajectory_tracking',
@@ -41,8 +40,8 @@ for feature in FeaturePool:
     feature_str = str(feature)
     result_1st_dir = os.path.join(RESULT_ROOT, feature_str)
 
-    rmse_table = np.zeros((len(ResultFile), len(SpeedPool),
-                           len(SeqNameList), NumRepeating))
+    rmse_table = np.full((len(ResultFile), len(SpeedPool),
+                          len(SeqNameList), NumRepeating), -1.0)
 
     mean_timing_table = np.full((len(SpeedPool),
                                  len(SeqNameList), NumRepeating), -1.0)
@@ -79,8 +78,10 @@ for feature in FeaturePool:
                 # collect tracking failure info
                 file_stats = os.path.join(experiment_dir, sname + '_stats.txt')
                 if not os.path.exists(file_stats):
-                    print(f"{file_stats} does NOT exist, take the current experiment as failure")
-                    print(f'tracking failed: Feature {feature}, Speed {speed}, Seq {sname}, Round {l+1}')
+                    print(
+                        f"{file_stats} does NOT exist, take the current experiment as failure")
+                    print(
+                        f'tracking failed: Feature {feature}, Speed {speed}, Seq {sname}, Round {l+1}')
                     rmse_table[i, j, k, l] = -1
                     continue
                 stats = np.loadtxt(file_stats)
@@ -90,9 +91,10 @@ for feature in FeaturePool:
                 with open(os.path.join(DATA_ROOT, sname, 'times.txt'), 'r') as f:
                     target_image_size = len(f.readlines())
                 tracking_ratio = float(stats.shape[0]) / target_image_size
-                if tracking_ratio < 0.4:
+                if tracking_ratio < 0.6:
                     rmse_table[:, j, k, l] = -1
-                    print(f'tracking failed: Feature {feature}, Speed {speed}, Seq {sname}, Round {l+1}, TR {tracking_ratio}')
+                    print(
+                        f'tracking failed: Feature {feature}, Speed {speed}, Seq {sname}, Round {l+1}, TR {tracking_ratio}')
                 # record timing
                 mean_timing_table[j, k, l] = np.mean(stats[:, 1])
                 median_timing_table[j, k, l] = np.median(stats[:, 1])
@@ -111,8 +113,10 @@ for feature in FeaturePool:
             if np.sum(indices) == qn:  # make sure every sequence succeeds
                 cur_table[row, qn] = np.mean(cur_table[row, indices])
                 cur_table[row, qn + 1] = np.median(cur_table[row, indices])
-                cur_table[row, qn + 2] = np.mean(mean_timing_table[row, indices[:-4]])
-                cur_table[row, qn + 3] = np.median(median_timing_table[row, indices[:-4]])
+                cur_table[row, qn +
+                          2] = np.mean(mean_timing_table[row, indices[:-4]])
+                cur_table[row, qn +
+                          3] = np.median(median_timing_table[row, indices[:-4]])
             # else:
                 # cur_table[row, qn] = -1
                 # cur_table[row, qn + 1] = -1
@@ -133,4 +137,5 @@ for feature in FeaturePool:
             final_table[pn+1, col] = np.sum(indices) / pn
             final_table[pn+2, col] = np.mean(temp_timing[indices[:-4], 0])
             final_table[pn+3, col] = np.median(temp_timing[indices[:-4], 1])
-        np.savetxt(output, np.transpose(final_table), fmt='%.6f', delimiter=',')
+        np.savetxt(output, np.transpose(final_table),
+                   fmt='%.6f', delimiter=',')

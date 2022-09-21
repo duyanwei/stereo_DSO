@@ -24,7 +24,7 @@ SeqNameList = [
 ]
 RESULT_ROOT = os.path.join(
     os.environ['SLAM_RESULT'], 'stereo_DSO/EuRoC/')
-NumRepeating = 1
+NumRepeating = 5
 SleepTime = 5  # 10 # 25 # second
 FeaturePool = [800]
 SpeedPool = [1.0, 2.0, 3.0, 4.0, 5.0]  # x
