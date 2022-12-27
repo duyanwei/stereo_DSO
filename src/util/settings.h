@@ -1,36 +1,33 @@
 /**
-* This file is part of DSO.
-* 
-* Copyright 2016 Technical University of Munich and Intel.
-* Developed by Jakob Engel <engelj at in dot tum dot de>,
-* for more information see <http://vision.in.tum.de/dso>.
-* If you use this code, please cite the respective publications as
-* listed on the above website.
-*
-* DSO is free software: you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
-*
-* DSO is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with DSO. If not, see <http://www.gnu.org/licenses/>.
-*/
-
-
+ * This file is part of DSO.
+ *
+ * Copyright 2016 Technical University of Munich and Intel.
+ * Developed by Jakob Engel <engelj at in dot tum dot de>,
+ * for more information see <http://vision.in.tum.de/dso>.
+ * If you use this code, please cite the respective publications as
+ * listed on the above website.
+ *
+ * DSO is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * DSO is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with DSO. If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #pragma once
 
 #include <string.h>
-#include <string>
 #include <cmath>
+#include <string>
 #include <vector>
 #include "NumType.h"
-
 
 namespace dso
 {
@@ -47,22 +44,17 @@ namespace dso
 #define SOLVER_STEPMOMENTUM (int)1024
 #define SOLVER_ORTHOGONALIZE_X_LATER (int)2048
 
-
 // ============== PARAMETERS TO BE DECIDED ON COMPILE TIME =================
 #define PYR_LEVELS 6
 extern int pyrLevelsUsed;
 
-
-
 extern float setting_keyframesPerSecond;
-extern bool setting_realTimeMaxKF;
+extern bool  setting_realTimeMaxKF;
 extern float setting_maxShiftWeightT;
 extern float setting_maxShiftWeightR;
 extern float setting_maxShiftWeightRT;
 extern float setting_maxAffineWeight;
 extern float setting_kfGlobalWeight;
-
-
 
 extern float setting_idepthFixPrior;
 extern float setting_idepthFixPriorMargFac;
@@ -72,71 +64,56 @@ extern float setting_initialAffBPrior;
 extern float setting_initialAffAPrior;
 extern float setting_initialCalibHessian;
 
-extern int setting_solverMode;
+extern int    setting_solverMode;
 extern double setting_solverModeDelta;
-
 
 extern float setting_minIdepthH_act;
 extern float setting_minIdepthH_marg;
 
-
-
 extern float setting_maxIdepth;
 extern float setting_maxPixSearch;
-extern float setting_desiredImmatureDensity;			// done
-extern float setting_desiredPointDensity;			// done
+extern float setting_desiredImmatureDensity;  // done
+extern float setting_desiredPointDensity;     // done
 extern float setting_minPointsRemaining;
 extern float setting_maxLogAffFacInWindow;
-extern int setting_minFrames;
-extern int setting_maxFrames;
-extern int setting_minFrameAge;
-extern int setting_maxOptIterations;
-extern int setting_minOptIterations;
+extern int   setting_minFrames;
+extern int   setting_maxFrames;
+extern int   setting_minFrameAge;
+extern int   setting_maxOptIterations;
+extern int   setting_minOptIterations;
 extern float setting_thOptIterations;
 extern float setting_outlierTH;
 extern float setting_outlierTHSumComponent;
 
-
-
-extern int setting_pattern;
+extern int   setting_pattern;
 extern float setting_margWeightFac;
-extern int setting_GNItsOnPointActivation;
-
+extern int   setting_GNItsOnPointActivation;
 
 extern float setting_minTraceQuality;
-extern int setting_minTraceTestRadius;
+extern int   setting_minTraceTestRadius;
 extern float setting_reTrackThreshold;
 
+extern int setting_minGoodActiveResForMarg;
+extern int setting_minGoodResForMarg;
+extern int setting_minInlierVotesForMarg;
 
-extern int   setting_minGoodActiveResForMarg;
-extern int   setting_minGoodResForMarg;
-extern int   setting_minInlierVotesForMarg;
-
-
-
-
-extern int setting_photometricCalibration;
-extern bool setting_useExposure;
+extern int   setting_photometricCalibration;
+extern bool  setting_useExposure;
 extern float setting_affineOptModeA;
 extern float setting_affineOptModeB;
-extern int setting_gammaWeightsPixelSelect;
-
-
+extern int   setting_gammaWeightsPixelSelect;
 
 extern bool setting_forceAceptStep;
 
-
-
 extern float setting_huberTH;
 
-
-extern bool setting_logStuff;
+extern bool  setting_logStuff;
 extern float benchmarkSetting_fxfyfac;
-extern int benchmarkSetting_width;
-extern int benchmarkSetting_height;
+extern int   benchmarkSetting_width;
+extern int   benchmarkSetting_height;
 extern float benchmark_varNoise;
 extern float benchmark_varBlurNoise;
-extern int benchmark_noiseGridsize;
+extern int   benchmark_noiseGridsize;
 extern float benchmark_initializerSlackFactor;
 
 extern float setting_frameEnergyTHConstWeight;
@@ -151,15 +128,12 @@ extern float setting_minGradHistAdd;
 extern float setting_gradDownweightPerLevel;
 extern bool  setting_selectDirectionDistribution;
 
-
-
 extern float setting_trace_stepsize;
-extern int setting_trace_GNIterations;
+extern int   setting_trace_GNIterations;
 extern float setting_trace_GNThreshold;
 extern float setting_trace_extraSlackOnTH;
 extern float setting_trace_slackInterval;
 extern float setting_trace_minImprovementFactor;
-
 
 extern bool setting_render_displayCoarseTrackingFull;
 extern bool setting_render_renderWindowFrames;
@@ -176,16 +150,11 @@ extern bool setting_debugout_runquiet;
 extern bool disableAllDisplay;
 extern bool disableReconfigure;
 
-
 extern bool setting_onlyLogKFPoses;
-
-
-
 
 extern bool debugSaveImages;
 
-
-extern int sparsityFactor;
+extern int  sparsityFactor;
 extern bool goStepByStep;
 extern bool plotStereoImages;
 extern bool multiThreading;
@@ -196,31 +165,25 @@ extern float freeDebugParam3;
 extern float freeDebugParam4;
 extern float freeDebugParam5;
 
-
 void handleKey(char k);
-
-
-
 
 extern int staticPattern[10][40][2];
 extern int staticPatternNum[10];
 extern int staticPatternPadding[10];
 
-extern double baseline;
-extern std::string gt_path;
-extern std::vector<SE3> gt_pose;
-extern std::vector<Vec3> gt_velocity;
-extern std::vector<Vec3> gt_bias_g;
-extern std::vector<Vec3> gt_bias_a;
-extern std::string savefile_tail;
-extern SE3 T_C0C1;
-extern SE3 T_C1C0;
-extern Mat33f K_right;
+extern double              baseline;
+extern std::string         gt_path;
+extern std::vector<SE3>    gt_pose;
+extern std::vector<Vec3>   gt_velocity;
+extern std::vector<Vec3>   gt_bias_g;
+extern std::vector<Vec3>   gt_bias_a;
+extern std::string         savefile_tail;
+extern SE3                 T_C0C1;
+extern SE3                 T_C1C0;
+extern Mat33f              K_right;
 extern std::vector<double> gt_time_stamp;
 extern std::vector<double> pic_time_stamp;
 extern std::vector<double> pic_time_stamp_r;
-
-
 
 //#define patternNum staticPatternNum[setting_pattern]
 //#define patternP staticPattern[setting_pattern]
@@ -231,16 +194,4 @@ extern std::vector<double> pic_time_stamp_r;
 #define patternP staticPattern[8]
 #define patternPadding 2
 
-
-
-
-
-
-
-
-
-
-
-
-
-}
+}  // namespace dso
