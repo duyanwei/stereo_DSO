@@ -23,14 +23,14 @@ SeqNameList = [
     'V2_01_easy', 'V2_02_medium', 'V2_03_difficult'
 ]
 RESULT_ROOT = os.path.join(
-    os.environ['SLAM_RESULT'], 'stereo_DSO/EuRoC/')
+    os.environ['SLAM_RESULT'], 'stereo_DSO/EuRoC/Baseline')
 NumRepeating = 5
 SleepTime = 5  # 10 # 25 # second
-FeaturePool = [800]
-SpeedPool = [1.0, 2.0, 3.0, 4.0, 5.0]  # x
+FeaturePool = [200, 500, 800, 1200, 1500, 2000]
+SpeedPool = [1.0]
 EnableViewer = 0
 EnableLogging = 0
-VI_SDSO_PATH = os.path.join(os.environ['SLAM_OPENSOURCE'], 'direct/stereo_DSO')
+VI_SDSO_PATH = os.path.join(os.environ['IVALAB'], 'direct/stereo_dso')
 
 # ----------------------------------------------------------------------------------------------------------------------
 

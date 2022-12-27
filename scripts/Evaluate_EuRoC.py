@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -*-coding:utf-8 -*-
 '''
-@file Evaluate_EuRoC_Stereo.py
+@file Evaluate_EuRoC.py
 @author Yanwei Du (duyanwei0702@gmail.com)
-@date 08-14-2022
+@date 12-05-2022
 @version 1.0
 @license Copyright (c) 2022
 @desc None
@@ -22,26 +22,32 @@ SeqNameList = [
     'MH_04_difficult', 'MH_05_difficult',
     'V1_01_easy', 'V1_02_medium', 'V1_03_difficult',
     'V2_01_easy', 'V2_02_medium', 'V2_03_difficult']
-RESULT_ROOT = os.path.join(
-    os.environ['SLAM_RESULT'], 'stereo_DSO/EuRoC/')
+RESULT_ROOT = os.path.join(os.environ['SLAM_RESULT'], 'stereo_DSO/EuRoC/Baseline')
 NumRepeating = 5
 SleepTime = 1  # 10 # 25 # second
-FeaturePool = [800]  # 2000]
-SpeedPool = [1.0, 2.0, 3.0, 4.0, 5.0]  # x
+FeaturePool = [200, 500, 800, 1200, 1500, 2000]
+SpeedPool = [1.0] #, 2.0, 3.0, 4.0, 5.0]  # x
 GT_ROOT = os.path.join(DATA_ROOT, 'gt_pose')
 SENSOR = 'cam0'
 SaveResult = 1
 ResultFile = [
     'CameraTrajectory_tracking',
-    'KeyFrameTrajectory']
+    'KeyFrameTrajectory',
+]
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 
 
 def call_evaluation(eval, gt, est, options, save):
     cmd_eval = eval + ' ' + gt + ' ' + est + ' ' + options
+    postfix = '.zip'
+    if 'ape' in eval:
+        postfix = '_ape.zip'
+    elif 'rpe' in eval:
+        postfix = '_rpe.zip'
     if save:
-        result = os.path.splitext(est)[0] + '.zip'
+        result = os.path.splitext(est)[0] + postfix
         cmd_eval = cmd_eval + ' --save_results ' + result
         if os.path.exists(result):
             cmd_rm_result = 'rm ' + result
@@ -77,40 +83,38 @@ for feature in FeaturePool:
         # loop over num of repeating
         for iteration in range(NumRepeating):
 
-            experiment_dir = os.path.join(
-                result_dir, 'Round' + str(iteration + 1))
+            experiment_dir = os.path.join(result_dir, 'Round' + str(iteration + 1))
 
             # loop over sequence
             for sn, sname in enumerate(SeqNameList):
 
-                print(
-                    bcolors.ALERT + "====================================================================" + bcolors.ENDC)
+                print(bcolors.ALERT + "====================================================================" + bcolors.ENDC)
 
                 SeqName = SeqNameList[sn]
-                print(
-                    bcolors.OKGREEN + f'Seq: {SeqName}; Feature: {feature_str}; Speed: {speed_str}; Round: {str(iteration + 1)};')
-
-                # create evaluation command
-                file_eval = 'evo_ape tum'
-                options = '-va --align_origin'
+                print(bcolors.OKGREEN + f'Seq: {SeqName}; Feature: {feature_str}; Speed: {speed_str}; Round: {str(iteration + 1)};')
 
                 # gt file
-                file_gt = os.path.join(
-                    GT_ROOT, SeqName + '_' + SENSOR + '.txt')
+                file_gt = os.path.join(GT_ROOT, SeqName + '_' + SENSOR + '.txt')
                 if not os.path.exists(file_gt):
-                    print(bcolors.ALERT + f'missing gt file: {file_gt}')
+                    print(f'missing gt file: {file_gt}')
                     exit(-1)
+
+                # create evaluation commad
+                ape_eval = 'evo_ape tum'
+                ape_options = '-vas --align_origin'
+
+                rpe_eval = 'evo_rpe tum'
+                rpe_options = '-va --align_origin -d 2 -u m'
 
                 # loop over each est file
                 for file_est_name in ResultFile:
-                    file_est = os.path.join(
-                        experiment_dir, SeqName+'_' + file_est_name + '.txt')
+                    file_est = os.path.join(experiment_dir, SeqName+'_' + file_est_name + '.txt')
                     if not os.path.exists(file_est):
-                        print(bcolors.ALERT + f'missing est file {file_est}')
+                        print(f'missing est file {file_est}')
                         continue
                     # evaluate
-                    call_evaluation(file_eval, file_gt,
-                                    file_est, options, SaveResult)
+                    call_evaluation(ape_eval, file_gt, file_est, ape_options, SaveResult)
+                    call_evaluation(rpe_eval, file_gt, file_est, rpe_options, SaveResult)
 
                 print(bcolors.OKGREEN + "Finished" + bcolors.ENDC)
                 time.sleep(SleepTime)
