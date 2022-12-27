@@ -34,6 +34,7 @@
 #include "FullSystem/HessianBlocks.h"
 #include "FullSystem/PixelSelector2.h"
 #include "FullSystem/Residuals.h"
+#include "FullSystem/Stats.h"
 #include "OptimizationBackend/EnergyFunctional.h"
 #include "util/FrameShell.h"
 #include "util/IndexThreadReduce.h"
@@ -144,7 +145,7 @@ public:
 
     float optimize(int mnumOptIts);
 
-    void printResult(std::string file);
+    void printResult(std::string file_prefix);
 
     void debugPlot(std::string name);
 
@@ -318,15 +319,21 @@ private:
 
     int lastRefStopID;
 
-    struct EstStampedPose
+    struct FrameTrackingResult
     {
-        double t;
-        SE3    T;
+        double timestamp;
+        SE3    camToWorld;
 
-        EstStampedPose(const double _t, const SE3& _T) : t(_t), T(_T)
+        FrameTrackingResult(const double _timestamp, const SE3& _camToWorld)
+          : timestamp(_timestamp), camToWorld(_camToWorld)
         {
         }
     };
-    std::vector<EstStampedPose> est_poses_;
+
+    std::vector<FrameTrackingResult> tracking_results;
+    TrackingLog                      tracking_log_;
+    std::vector<TrackingLog>         tracking_logs_;
+    MappingLog                       mapping_log_;
+    std::vector<MappingLog>          mapping_logs_;
 };
 }  // namespace dso

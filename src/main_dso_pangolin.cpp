@@ -677,12 +677,13 @@ int main(int argc, char** argv)
     // to make MacOS happy: run this in dedicated thread -- and use this one to
     // run the GUI.
     std::thread runthread([&]() {
-        std::vector<int>                 idsToPlay;
-        std::vector<double>              timesToPlayAt;
-        std::vector<int>                 idsToPlayRight;  // right images
-        std::vector<double>              timesToPlayAtRight;
-        slam_utility::stats::TicTocTimer tic_toc_timer;
-        std::vector<slam_utility::stats::TimeLog> time_logs;
+        std::vector<int>    idsToPlay;
+        std::vector<double> timesToPlayAt;
+        std::vector<int>    idsToPlayRight;  // right images
+        std::vector<double> timesToPlayAtRight;
+        std::vector<double> tracking_timecost;
+
+        slam_utility::stats::TicTocTimer timer;
         for (int i = lstart;
              i >= 0 && i < reader->getNumImages() && linc * i < linc * lend;
              i += linc)
@@ -812,10 +813,9 @@ int main(int argc, char** argv)
 
             if (!skipFrame)
             {
-                tic_toc_timer.tic();
+                timer.tic();
                 fullSystem->addActiveFrame(img, img_right, i);
-                time_logs.emplace_back(reader->getTimestamp(i),
-                                       tic_toc_timer.toc());
+                tracking_timecost.emplace_back(timer.toc());
             }
 
             delete img;
@@ -849,6 +849,26 @@ int main(int argc, char** argv)
                 printf("LOST!!\n");
                 break;
             }
+        }
+        // save stats
+        {
+            const int     good_frame_count = tracking_timecost.size();
+            std::ofstream myfile(savefile_tail + "_stats.txt");
+            myfile << "# total_frames tracked_frames mean_tt median_tt min_tt "
+                      "max_tracking_time"
+                   << "\n";
+            // total_frames, tracked_frames
+            myfile << reader->getNumImages() << " " << good_frame_count << " ";
+
+            std::sort(tracking_timecost.begin(), tracking_timecost.end());
+            const double s = std::accumulate(tracking_timecost.begin(),
+                                             tracking_timecost.end(), 0.0);
+            // timecost: mean, median, min, max
+            myfile << std::setprecision(10) << s / good_frame_count << " "
+                   << tracking_timecost.at(good_frame_count / 2) << " "
+                   << tracking_timecost.front() << " "
+                   << tracking_timecost.back() << std::endl;
+            myfile.close();
         }
         fullSystem->blockUntilMappingIsFinished();
         clock_t        ended = clock();
@@ -893,11 +913,6 @@ int main(int argc, char** argv)
                   << "\n";
             tmlog.flush();
             tmlog.close();
-        }
-
-        {
-            slam_utility::stats::TimeLog::Save(savefile_tail + "_stats.txt",
-                                               time_logs);
         }
     });
 

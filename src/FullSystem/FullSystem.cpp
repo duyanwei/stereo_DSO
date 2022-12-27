@@ -243,13 +243,13 @@ void FullSystem::setGammaFunction(float* BInv)
     Hcalib.B[255] = 255;
 }
 
-void FullSystem::printResult(std::string prefix)
+void FullSystem::printResult(std::string file_prefix)
 {
     boost::unique_lock<boost::mutex> lock(trackMutex);
     boost::unique_lock<boost::mutex> crlock(shellPoseMutex);
 
     std::ofstream myfile;
-    myfile.open(prefix + "_KeyFrameTrajectory.txt");
+    myfile.open(file_prefix + "_KeyFrameTrajectory.txt");
     myfile << std::setprecision(15);
 
     for (FrameShell* s : allFrameHistory)
@@ -260,26 +260,50 @@ void FullSystem::printResult(std::string prefix)
         if (setting_onlyLogKFPoses && s->marginalizedAt == s->id)
             continue;
 
-        const Vec3 trans = s->camToWorld.translation().transpose();
-        const Vec4 quat  = s->camToWorld.so3().unit_quaternion().coeffs();
-
-        myfile << s->timestamp << " " << trans(0) << " " << trans(1) << " "
-               << trans(2) << " " << quat(0) << " " << quat(1) << " " << quat(2)
-               << " " << quat(3) << "\n";
+        myfile << s->timestamp << " " << s->camToWorld.translation().x() << " "
+               << s->camToWorld.translation().y() << " "
+               << s->camToWorld.translation().z() << " "
+               << s->camToWorld.so3().unit_quaternion().x() << " "
+               << s->camToWorld.so3().unit_quaternion().y() << " "
+               << s->camToWorld.so3().unit_quaternion().z() << " "
+               << s->camToWorld.so3().unit_quaternion().w() << "\n";
     }
     myfile.close();
 
-    myfile.open(prefix + "_CameraTrajectory_tracking.txt");
-    myfile << std::setprecision(15);
-    for (const auto& v : est_poses_)
+    // save tracking result
     {
-        const Vec4 q = Eigen::Quaterniond(v.T.rotationMatrix()).coeffs();
-        const Vec3 t = v.T.translation();
-        myfile << v.t << " " << t(0) << " " << t(1) << " " << t(2) << " "
-               << q(0) << " " << q(1) << " " << q(2) << " " << q(3)
-               << std::endl;
+        myfile.open(file_prefix + "_CameraTrajectory_tracking.txt");
+        for (const auto& s : tracking_results)
+        {
+            myfile << s.timestamp << " " << s.camToWorld.translation().x()
+                   << " " << s.camToWorld.translation().y() << " "
+                   << s.camToWorld.translation().z() << " "
+                   << s.camToWorld.so3().unit_quaternion().x() << " "
+                   << s.camToWorld.so3().unit_quaternion().y() << " "
+                   << s.camToWorld.so3().unit_quaternion().z() << " "
+                   << s.camToWorld.so3().unit_quaternion().w() << "\n";
+        }
+        myfile.close();
     }
-    myfile.close();
+
+    // save tracking and mapping logs
+    {
+        myfile.open(file_prefix + "_tracking_log.txt");
+        myfile << TrackingLog::getHeader();
+        for (const auto& t : tracking_logs_)
+        {
+            myfile << t;
+        }
+        myfile.close();
+
+        myfile.open(file_prefix + "_mapping_log.txt");
+        myfile << MappingLog::getHeader();
+        for (const auto& m : mapping_logs_)
+        {
+            myfile << m;
+        }
+        myfile.close();
+    }
 }
 
 Vec4 FullSystem::trackNewCoarse(FrameHessian* fh)
@@ -1207,6 +1231,11 @@ void FullSystem::addActiveFrame(ImageAndExposure* image,
         return;
     boost::unique_lock<boost::mutex> lock(trackMutex);
 
+    tracking_log_.reset();
+    tracking_log_.timestamp = image->timestamp;
+    TicTocTimer tracking_timer;
+    tracking_timer.tic();
+    TicTocTimer tictoc_timer;
     // =========================== add into allFrameHistory
     // =========================
     FrameHessian* fh       = new FrameHessian();
@@ -1225,10 +1254,12 @@ void FullSystem::addActiveFrame(ImageAndExposure* image,
     // =========================== make Images / derivatives etc.
     // =========================
     fh->ab_exposure = image->exposure_time;
+    tictoc_timer.tic();
     fh->makeImages(image->image, &Hcalib);
     fh_right->ab_exposure = image_right->exposure_time;
     fh_right->makeImages(image_right->image, &Hcalib);
-    fh->frame_right = fh_right;
+    fh->frame_right          = fh_right;
+    tracking_log_.make_image = tictoc_timer.toc();
 
     if (!initialized)
     {
@@ -1257,7 +1288,9 @@ void FullSystem::addActiveFrame(ImageAndExposure* image,
         {
             initializeFromInitializer(fh);
         }
-        Vec4 tres = trackNewCoarse(fh);
+        tictoc_timer.tic();
+        Vec4 tres                     = trackNewCoarse(fh);
+        tracking_log_.coarse_tracking = tictoc_timer.toc();
         // 		LOG(INFO)<<"track done";
 
         if (!std::isfinite((double)tres[0]) ||
@@ -1319,6 +1352,11 @@ void FullSystem::addActiveFrame(ImageAndExposure* image,
 
         lock.unlock();
         deliverTrackedFrame(fh, fh_right, needToMakeKF);
+        tracking_log_.tracking = tracking_timer.toc();
+        tracking_logs_.emplace_back(tracking_log_);
+        tracking_log_.reset();
+        tracking_results.emplace_back(fh->shell->timestamp,
+                                      fh->shell->camToWorld);
         // 		LOG(INFO)<<"fh->worldToCam_evalPT:
         // "<<allFrameHistory[allFrameHistory.size()-1]->camToWorld.translation().transpose();
         // 		LOG(INFO)<<"fh->shell->aff_g2l:
@@ -1328,7 +1366,6 @@ void FullSystem::addActiveFrame(ImageAndExposure* image,
         // 		LOG(INFO)<<"fh->shell->trackingRef->camToWorld :
         // "<<fh->shell->trackingRef->camToWorld.translation().transpose();
         // 		exit(1);
-        est_poses_.emplace_back(fh->shell->timestamp, fh->shell->camToWorld);
         return;
     }
 }
@@ -1354,7 +1391,16 @@ void FullSystem::deliverTrackedFrame(FrameHessian* fh, FrameHessian* fh_right,
             handleKey(IOWrap::waitKey(1));
 
         if (needKF)
+        {
+            mapping_log_.reset();
+            mapping_log_.timestamp = fh->shell->timestamp;
+            TicTocTimer timer;
+            timer.tic();
             makeKeyFrame(fh, fh_right);
+            mapping_log_.mapping = timer.toc();
+            mapping_logs_.emplace_back(mapping_log_);
+            mapping_log_.reset();
+        }
         else
             makeNonKeyFrame(fh, fh_right);
     }
@@ -1399,7 +1445,16 @@ void FullSystem::mappingLoop()
         if (allKeyFramesHistory.size() <= 2)
         {
             lock.unlock();
-            makeKeyFrame(fh, fh_right);
+            {
+                mapping_log_.reset();
+                mapping_log_.timestamp = fh->shell->timestamp;
+                TicTocTimer timer;
+                timer.tic();
+                makeKeyFrame(fh, fh_right);
+                mapping_log_.mapping = timer.toc();
+                mapping_logs_.emplace_back(mapping_log_);
+                mapping_log_.reset();
+            }
             lock.lock();
             mappedFrameSignal.notify_all();
             continue;
@@ -1439,7 +1494,16 @@ void FullSystem::mappingLoop()
                 needNewKFAfter >= frameHessians.back()->shell->id)
             {
                 lock.unlock();
-                makeKeyFrame(fh, fh_right);
+                {
+                    mapping_log_.reset();
+                    mapping_log_.timestamp = fh->shell->timestamp;
+                    TicTocTimer timer;
+                    timer.tic();
+                    makeKeyFrame(fh, fh_right);
+                    mapping_log_.mapping = timer.toc();
+                    mapping_logs_.emplace_back(mapping_log_);
+                    mapping_log_.reset();
+                }
                 needToKetchupMapping = false;
                 lock.lock();
             }
@@ -1542,17 +1606,22 @@ void FullSystem::makeKeyFrame(FrameHessian* fh, FrameHessian* fh_right)
         }
     }
 
+    TicTocTimer stats_timer;
     // =========================== Activate Points (& flag for marginalization).
     // =========================
+    stats_timer.tic();
     activatePointsMT();
+    mapping_log_.activate_points = stats_timer.toc();
     ef->makeIDX();
 
     // =========================== OPTIMIZE ALL =========================
 
+    stats_timer.tic();
     fh->frameEnergyTH = frameHessians.back()->frameEnergyTH;
     // 	LOG(INFO)<<"optimize start";
     float rmse = optimize(setting_maxOptIterations);
     // 	LOG(INFO)<<"rmse: "<<rmse;
+    mapping_log_.optimization = stats_timer.toc();
 
     // =========================== Figure Out if INITIALIZATION FAILED
     // =========================
@@ -1583,7 +1652,9 @@ void FullSystem::makeKeyFrame(FrameHessian* fh, FrameHessian* fh_right)
 
     // 	LOG(INFO)<<"remove outliers.";
     // =========================== REMOVE OUTLIER =========================
+    stats_timer.tic();
     removeOutliers();
+    mapping_log_.remove_outliers = stats_timer.toc();
 
     {
         boost::unique_lock<boost::mutex> crlock(coarseTrackerSwapMutex);
@@ -1614,7 +1685,9 @@ void FullSystem::makeKeyFrame(FrameHessian* fh, FrameHessian* fh_right)
     // 	LOG(INFO)<<"makeNewTraces";
     // =========================== add new Immature points & new residuals
     // =========================
+    stats_timer.tic();
     makeNewTraces(fh, 0);
+    mapping_log_.make_new_traces = stats_timer.toc();
 
     // 	LOG(INFO)<<"makeNewTraces end";
 
@@ -1627,12 +1700,14 @@ void FullSystem::makeKeyFrame(FrameHessian* fh, FrameHessian* fh_right)
     // 	LOG(INFO)<<"marginalizeFrame";
     // =========================== Marginalize Frames =========================
 
+    stats_timer.tic();
     for (unsigned int i = 0; i < frameHessians.size(); i++)
         if (frameHessians[i]->flaggedForMarginalization)
         {
             marginalizeFrame(frameHessians[i]);
             i = 0;
         }
+    mapping_log_.marginalize_frame = stats_timer.toc();
     // 	LOG(INFO)<<"make key end";
     // 	delete fh_right;
 
