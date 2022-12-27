@@ -1,3 +1,15 @@
+# stereo_dso
+
+**Dec-26-2022**
+
+The codebase was originally from https://github.com/RonaldSun/stereo_DSO, thanks the author \<Ronald Sun\> for the implementation and making it public.
+
+A few modifications have been made:
+- Make it work with EuRoC dataset (probably won't work with kitti anymore)
+- Save tracking and mapping stats, including time cost
+- Save tracking and mapping pose estimation result
+
+---
 # stereo_DSO
 
 ## Related Papers:
